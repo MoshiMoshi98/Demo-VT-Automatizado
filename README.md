@@ -4,11 +4,11 @@ Verificador automatizado de IOCs (Indicators of Compromise) usando la API de Vir
 
 ## Características
 
-- ✅ Verificación de hashes (MD5, SHA1, SHA256), IPs y dominios
-- ✅ Rate limiting automático (4 consultas/min - plan gratuito VT)
-- ✅ Cache de resultados en SQLite
-- ✅ Dashboard con gráficas interactivas
-- ✅ Exportación a Excel con estadísticas y links
+-  Verificación de hashes (MD5, SHA1, SHA256), IPs y dominios
+-  Rate limiting automático (4 consultas/min - plan gratuito VT)
+-  Cache de resultados en SQLite
+-  Dashboard con gráficas interactivas
+-  Exportación a Excel con estadísticas y links
 
 ## Instalación Local
 
@@ -40,6 +40,3 @@ python app.py
 2. Ir a tu perfil > API Key
 3. Copiar la key (plan gratuito: 4 consultas/minuto)
 
-## Autor
-
-CIR Banxico - Dirección de Ciberseguridad
