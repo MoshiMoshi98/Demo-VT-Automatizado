@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VT-Automatizado - Verificador IOCs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #f5f6fa; font-family: 'Segoe UI', sans-serif; }
+        .navbar-brand { font-weight: bold; }
+        .stats-card { color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .stats-number { font-size: 2.2em; font-weight: bold; }
+        .stats-label { font-size: 0.85em; opacity: 0.9; }
+        .chart-box { background: white; border-radius: 10px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); height: 300px; }
+        .card-custom { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .score-badge { padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.85em; display: inline-block; min-width: 55px; text-align: center; }
+        .score-clean { background: #27ae60; color: white; }
+        .score-low { background: #f39c12; color: white; }
+        .score-high { background: #e74c3c; color: white; }
+        .score-pending { background: #95a5a6; color: white; }
+        .ioc-link { color: #2980b9; text-decoration: none; font-family: monospace; font-size: 0.85em; }
+        .ioc-link:hover { text-decoration: underline; }
+        .table-container { max-height: 400px; overflow-y: auto; }
+        .btn-excel { background: #217346; border-color: #217346; color: white; }
+        .btn-excel:hover { background: #1e6a3f; color: white; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark" style="background: linear-gradient(135deg, #182B47 0%, #00727C 100%);">
+        <div class="container">
+            <span class="navbar-brand"><i class="bi bi-shield-check"></i> VT-Automatizado</span>
+            <span class="text-white-50">Verificador de IOCs con VirusTotal</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 style="color:#182B47;margin:0"><i class="bi bi-shield-check"></i> Panel de Análisis</h5>
+                <p class="text-muted mb-0" style="font-size:0.85em">VirusTotal API v3 · 70+ motores antivirus</p>
+            </div>
+            <a href="/export/xlsx" class="btn btn-excel"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</a>
+        </div>
+
+        <!-- Stats -->
+        <div class="row mb-3">
+            <div class="col-6 col-md-3 mb-2">
+                <div class="stats-card" style="background: linear-gradient(135deg, #182B47 0%, #00727C 100%);">
+                    <div class="stats-number">{{ total }}</div>
+                    <div class="stats-label"><i class="bi bi-collection"></i> Total IOCs</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 mb-2">
+                <div class="stats-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                    <div class="stats-number">{{ malicious_count }}</div>
+                    <div class="stats-label"><i class="bi bi-exclamation-triangle"></i> Maliciosos</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 mb-2">
+                <div class="stats-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+                    <div class="stats-number">{{ suspicious_count }}</div>
+                    <div class="stats-label"><i class="bi bi-question-circle"></i> Sospechosos</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 mb-2">
+                <div class="stats-card" style="background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);">
+                    <div class="stats-number">{{ clean_count }}</div>
+                    <div class="stats-label"><i class="bi bi-check-circle"></i> Limpios</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="row mb-3">
+            <div class="col-md-6 mb-2">
+                <div class="chart-box">
+                    <h6 style="color:#182B47"><i class="bi bi-pie-chart"></i> Distribución</h6>
+                    <canvas id="chartPie"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6 mb-2">
+                <div class="chart-box">
+                    <h6 style="color:#182B47"><i class="bi bi-bar-chart"></i> Top Amenazas</h6>
+                    <canvas id="chartBar"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="card-custom">
+            <h6 style="color:#182B47"><i class="bi bi-input-cursor"></i> Agregar IOCs</h6>
+            <textarea id="iocs-input" class="form-control mb-2" rows="2" style="font-family:monospace"
+                placeholder="Pega IOCs aquí (uno por línea) - SHA256, MD5, IPs, Dominios"></textarea>
+            <div class="d-flex gap-2">
+                <button id="btn-add" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Agregar</button>
+                <button id="btn-scan" class="btn btn-success btn-sm"><i class="bi bi-play-fill"></i> Escanear</button>
+                <button id="btn-stop" class="btn btn-warning btn-sm" style="display:none"><i class="bi bi-pause"></i> Pausar</button>
+                <span id="scan-status" class="ms-auto align-self-center text-muted"></span>
+            </div>
+            {% if not stats.api_configured %}
+            <div class="alert alert-warning mt-2 mb-0"><i class="bi bi-exclamation-triangle"></i> API Key no configurada. Configura VT_API_KEY en variables de entorno.</div>
+            {% endif %}
+        </div>
+
+        <!-- Results -->
+        <div class="card-custom">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 style="color:#182B47;margin:0"><i class="bi bi-table"></i> Resultados ({{ total }})</h6>
+                <div>
+                    <span class="badge bg-danger">{{ malicious_count }} maliciosos</span>
+                    <span class="badge bg-warning text-dark">{{ suspicious_count }} sospechosos</span>
+                    <span class="badge bg-success">{{ clean_count }} limpios</span>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="table table-sm table-hover" style="font-size:0.85em">
+                    <thead style="background:#f8f9fa;position:sticky;top:0">
+                        <tr>
+                            <th style="width:65px">Score</th>
+                            <th>IOC</th>
+                            <th style="width:70px">Tipo</th>
+                            <th>Threat Label</th>
+                            <th style="width:40px">VT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ioc in iocs %}
+                        {% set vt_url = '' %}
+                        {% if ioc.ioc_type in ['md5', 'sha1', 'sha256'] %}
+                          {% set vt_url = 'https://www.virustotal.com/gui/file/' ~ ioc.ioc_value %}
+                        {% elif ioc.ioc_type == 'ip' %}
+                          {% set vt_url = 'https://www.virustotal.com/gui/ip-address/' ~ ioc.ioc_value %}
+                        {% elif ioc.ioc_type == 'domain' %}
+                          {% set vt_url = 'https://www.virustotal.com/gui/domain/' ~ ioc.ioc_value %}
+                        {% endif %}
+                        <tr>
+                            <td>
+                                {% if ioc.status == 'scanned' %}
+                                  {% if ioc.malicious == 0 %}
+                                  <span class="score-badge score-clean">{{ ioc.malicious }}/{{ ioc.total }}</span>
+                                  {% elif ioc.malicious < 10 %}
+                                  <span class="score-badge score-low">{{ ioc.malicious }}/{{ ioc.total }}</span>
+                                  {% else %}
+                                  <span class="score-badge score-high">{{ ioc.malicious }}/{{ ioc.total }}</span>
+                                  {% endif %}
+                                {% elif ioc.status == 'not_found' %}
+                                  <span class="score-badge score-pending">N/A</span>
+                                {% else %}
+                                  <span class="score-badge score-pending">···</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if vt_url %}
+                                <a href="{{ vt_url }}" target="_blank" class="ioc-link">{{ ioc.ioc_value[:60] }}{% if ioc.ioc_value|length > 60 %}...{% endif %}</a>
+                                {% else %}
+                                <span style="font-family:monospace">{{ ioc.ioc_value }}</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge {% if ioc.ioc_type in ['md5','sha1','sha256'] %}bg-info{% elif ioc.ioc_type == 'ip' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ ioc.ioc_type }}</span></td>
+                            <td>{{ ioc.threat_label or '-' }}</td>
+                            <td>
+                                {% if vt_url %}
+                                <a href="{{ vt_url }}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding:1px 5px"><i class="bi bi-box-arrow-up-right"></i></a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">No hay IOCs</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        new Chart(document.getElementById('chartPie'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Maliciosos ({{ malicious_count }})', 'Sospechosos ({{ suspicious_count }})', 'Limpios ({{ clean_count }})', 'Sin resultados ({{ not_found }})'],
+                datasets: [{ data: [{{ malicious_count }}, {{ suspicious_count }}, {{ clean_count }}, {{ not_found }}], backgroundColor: ['#e74c3c', '#f39c12', '#27ae60', '#95a5a6'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
+
+        new Chart(document.getElementById('chartBar'), {
+            type: 'bar',
+            data: {
+                labels: {{ threat_labels|tojson|safe }},
+                datasets: [{ label: 'Detecciones', data: {{ threat_counts|tojson|safe }}, backgroundColor: '#e74c3c' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+
+        let scanning = false;
+        document.getElementById('btn-add').onclick = async function() {
+            const iocs = document.getElementById('iocs-input').value;
+            if (!iocs.trim()) return;
+            const resp = await fetch('/add', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({iocs}) });
+            const data = await resp.json();
+            alert('✓ Agregados: ' + data.added);
+            location.reload();
+        };
+        document.getElementById('btn-scan').onclick = function() {
+            scanning = true;
+            this.style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'inline-block';
+            scanNext();
+        };
+        document.getElementById('btn-stop').onclick = function() {
+            scanning = false;
+            this.style.display = 'none';
+            document.getElementById('btn-scan').style.display = 'inline-block';
+        };
+        async function scanNext() {
+            if (!scanning) return;
+            const resp = await fetch('/scan', {method: 'POST'});
+            const data = await resp.json();
+            if (data.status === 'wait') {
+                document.getElementById('scan-status').textContent = '⏳ ' + data.seconds + 's...';
+                setTimeout(scanNext, data.seconds * 1000);
+            } else if (data.status === 'done') {
+                document.getElementById('scan-status').textContent = '✅ Completado';
+                scanning = false;
+                setTimeout(function() { location.reload(); }, 500);
+            } else {
+                document.getElementById('scan-status').textContent = data.malicious + '/' + data.total;
+                setTimeout(scanNext, 200);
+            }
+        }
+    </script>
+</body>
+</html>
