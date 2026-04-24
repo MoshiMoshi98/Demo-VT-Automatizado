@@ -30,6 +30,7 @@
 <nav class="navbar navbar-dark" style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);">
     <div class="container">
         <span class="navbar-brand fw-bold"><i class="bi bi-shield-check"></i> VT-Automatizado v2</span>
+        <span class="text-white-50 small">Verificador de IOCs - CIR Banxico</span>
     </div>
 </nav>
 <div class="container mt-4">
@@ -46,9 +47,16 @@
         <div class="col-6 col-md-3 mb-3"><div class="stats-card" style="background:linear-gradient(135deg,#d35400,#f39c12)"><div class="stats-number" id="s-sus">0</div><div class="stats-label"><i class="bi bi-question-circle"></i> Sospechosos</div></div></div>
         <div class="col-6 col-md-3 mb-3"><div class="stats-card" style="background:linear-gradient(135deg,#1e8449,#27ae60)"><div class="stats-number" id="s-clean">0</div><div class="stats-label"><i class="bi bi-check-circle"></i> Limpios</div></div></div>
     </div>
+    <!-- Fila 1 graficas -->
     <div class="row mb-4">
-        <div class="col-md-5 mb-3"><div class="chart-box" style="height:310px"><h6 style="color:#1a1a2e"><i class="bi bi-pie-chart-fill"></i> Distribucion</h6><div style="height:255px"><canvas id="chartPie"></canvas></div></div></div>
-        <div class="col-md-7 mb-3"><div class="chart-box" style="height:310px"><h6 style="color:#1a1a2e"><i class="bi bi-bar-chart-fill"></i> Top Amenazas</h6><div style="height:255px"><canvas id="chartBar"></canvas></div></div></div>
+        <div class="col-md-4 mb-3"><div class="chart-box" style="height:300px"><h6 style="color:#1a1a2e"><i class="bi bi-pie-chart-fill"></i> Distribucion</h6><div style="height:240px"><canvas id="chartPie"></canvas></div></div></div>
+        <div class="col-md-4 mb-3"><div class="chart-box" style="height:300px"><h6 style="color:#1a1a2e"><i class="bi bi-bar-chart-fill"></i> Top Amenazas</h6><div style="height:240px"><canvas id="chartBar"></canvas></div></div></div>
+        <div class="col-md-4 mb-3"><div class="chart-box" style="height:300px"><h6 style="color:#1a1a2e"><i class="bi bi-tags-fill"></i> Por Tipo de IOC</h6><div style="height:240px"><canvas id="chartTipo"></canvas></div></div></div>
+    </div>
+    <!-- Fila 2 graficas -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3"><div class="chart-box" style="height:280px"><h6 style="color:#1a1a2e"><i class="bi bi-globe2"></i> Top Paises (IPs)</h6><div style="height:225px"><canvas id="chartPaises"></canvas></div></div></div>
+        <div class="col-md-6 mb-3"><div class="chart-box" style="height:280px"><h6 style="color:#1a1a2e"><i class="bi bi-speedometer2"></i> Distribucion de Score</h6><div style="height:225px"><canvas id="chartScore"></canvas></div></div></div>
     </div>
     <div class="card-custom">
         <h6 style="color:#1a1a2e"><i class="bi bi-input-cursor-text"></i> Agregar IOCs</h6>
@@ -85,12 +93,23 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 <script>
-let iocs=[],scanning=false,nextId=1,pieChart,barChart;
+let iocs=[],scanning=false,nextId=1;
+let pieChart,barChart,tipoChart,paisesChart,scoreChart;
+
 pieChart=new Chart(document.getElementById("chartPie"),{type:"doughnut",data:{labels:["Maliciosos","Sospechosos","Limpios","Sin resultado"],datasets:[{data:[0,0,0,0],backgroundColor:["#e74c3c","#f39c12","#27ae60","#95a5a6"],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:"60%",plugins:{legend:{position:"bottom"}}}});
+
 barChart=new Chart(document.getElementById("chartBar"),{type:"bar",data:{labels:[],datasets:[{data:[],backgroundColor:"#e74c3c",borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+
+tipoChart=new Chart(document.getElementById("chartTipo"),{type:"bar",data:{labels:["SHA256","MD5","SHA1","IP","Dominio"],datasets:[{data:[0,0,0,0,0],backgroundColor:["#3498db","#9b59b6","#1abc9c","#f39c12","#e67e22"],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+
+paisesChart=new Chart(document.getElementById("chartPaises"),{type:"bar",data:{labels:[],datasets:[{data:[],backgroundColor:"#2980b9",borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+
+scoreChart=new Chart(document.getElementById("chartScore"),{type:"bar",data:{labels:["Limpio (0)","Bajo (1-10)","Medio (11-30)","Alto (30+)"],datasets:[{data:[0,0,0,0],backgroundColor:["#27ae60","#f39c12","#e67e22","#e74c3c"],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+
 function vtUrl(ioc){if(["md5","sha1","sha256"].includes(ioc.ioc_type))return"https://www.virustotal.com/gui/file/"+ioc.value;if(ioc.ioc_type==="ip")return"https://www.virustotal.com/gui/ip-address/"+ioc.value;if(ioc.ioc_type==="domain")return"https://www.virustotal.com/gui/domain/"+ioc.value;return"#";}
 function scoreBadge(ioc){if(ioc.status==="pending")return'<span class="score-badge score-pending">...</span>';if(ioc.status==="scanning")return'<span class="score-badge score-pending">Escaneando</span>';if(ioc.status==="not_found")return'<span class="score-badge score-nf">N/F</span>';if(ioc.status==="error")return'<span class="score-badge score-nf">ERR</span>';if(ioc.malicious>10)return`<span class="score-badge score-high">${ioc.score}</span>`;if(ioc.malicious>0)return`<span class="score-badge score-medium">${ioc.score}</span>`;return`<span class="score-badge score-clean">${ioc.score}</span>`;}
 function typeBadge(t){const cls=["md5","sha1","sha256"].includes(t)?"bg-info":t==="ip"?"bg-warning text-dark":"bg-secondary";return`<span class="badge ${cls}">${t}</span>`;}
+
 function render(){
     const mal=iocs.filter(i=>i.status==="scanned"&&i.malicious>10).length;
     const sus=iocs.filter(i=>i.status==="scanned"&&i.malicious>0&&i.malicious<=10).length;
@@ -101,15 +120,45 @@ function render(){
     ["s-mal","b-mal"].forEach(id=>document.getElementById(id).textContent=mal);
     ["s-sus","b-sus"].forEach(id=>document.getElementById(id).textContent=sus);
     ["s-clean","b-clean"].forEach(id=>document.getElementById(id).textContent=clean);
+
+    // Pie distribucion
     pieChart.data.datasets[0].data=[mal,sus,clean,nf];pieChart.update();
+
+    // Bar top amenazas
     const tc={};iocs.forEach(i=>{if(i.threat_label){const l=i.threat_label.split("/")[0];tc[l]=(tc[l]||0)+1;}});
     const s=Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,8);
     barChart.data.labels=s.map(x=>x[0]);barChart.data.datasets[0].data=s.map(x=>x[1]);barChart.update();
+
+    // Bar por tipo
+    tipoChart.data.datasets[0].data=[
+        iocs.filter(i=>i.ioc_type==="sha256").length,
+        iocs.filter(i=>i.ioc_type==="md5").length,
+        iocs.filter(i=>i.ioc_type==="sha1").length,
+        iocs.filter(i=>i.ioc_type==="ip").length,
+        iocs.filter(i=>i.ioc_type==="domain").length
+    ];tipoChart.update();
+
+    // Bar paises
+    const pc={};iocs.filter(i=>i.country).forEach(i=>{pc[i.country]=(pc[i.country]||0)+1;});
+    const ps=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    paisesChart.data.labels=ps.map(x=>x[0]);paisesChart.data.datasets[0].data=ps.map(x=>x[1]);paisesChart.update();
+
+    // Bar score dist
+    const scanned=iocs.filter(i=>i.status==="scanned");
+    scoreChart.data.datasets[0].data=[
+        scanned.filter(i=>i.malicious===0).length,
+        scanned.filter(i=>i.malicious>0&&i.malicious<=10).length,
+        scanned.filter(i=>i.malicious>10&&i.malicious<=30).length,
+        scanned.filter(i=>i.malicious>30).length
+    ];scoreChart.update();
+
+    // Tabla
     const si=[...iocs].sort((a,b)=>(b.malicious||0)-(a.malicious||0));
     const tbody=document.getElementById("results-tbody");
     if(si.length===0){tbody.innerHTML='<tr><td colspan="6" class="text-center text-muted py-4">Agrega IOCs para comenzar</td></tr>';return;}
     tbody.innerHTML=si.map(ioc=>{const url=vtUrl(ioc);const info=[ioc.file_name,ioc.file_type,ioc.country,ioc.as_owner?`(${ioc.as_owner.substring(0,20)})`:""].filter(Boolean).join(" - ");return`<tr class="${ioc.status==="scanning"?"scanning-row":""}"><td>${scoreBadge(ioc)}</td><td><a href="${url}" target="_blank" class="ioc-link">${ioc.value.substring(0,55)}${ioc.value.length>55?"...":""}</a></td><td>${typeBadge(ioc.ioc_type)}</td><td><strong>${ioc.threat_label||""}</strong></td><td class="file-info">${info}</td><td><a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i></a></td></tr>`;}).join("");
 }
+
 document.getElementById("btn-add").onclick=function(){
     const text=document.getElementById("iocs-input").value.trim();if(!text)return;
     const lines=text.split("\n").map(l=>l.trim()).filter(l=>l.length>3);let added=0;
@@ -135,12 +184,53 @@ async function scanLoop(){
     render();setTimeout(scanLoop,350);
 }
 function clearAll(){if(!confirm("Borrar todos los IOCs?"))return;iocs=[];nextId=1;render();document.getElementById("scan-status").textContent="";}
+
 function exportExcel(){
     if(iocs.length===0){alert("No hay IOCs para exportar");return;}
     const wb=XLSX.utils.book_new();
-    const mal=iocs.filter(i=>i.malicious>10).length,sus=iocs.filter(i=>i.malicious>0&&i.malicious<=10).length,clean=iocs.filter(i=>i.status==="scanned"&&i.malicious===0).length,nf=iocs.filter(i=>i.status==="not_found").length,total=iocs.length;
-    const ws1=XLSX.utils.aoa_to_sheet([["REPORTE IOCs - VIRUSTOTAL"],[],["Fecha",new Date().toLocaleString("es-MX")],["Generado por","VT-Automatizado v2 - CIR Banxico"],[],["ESTADISTICAS","Cantidad","Porcentaje"],["Total",total,"100%"],["Maliciosos",mal,`${(mal/total*100).toFixed(1)}%`],["Sospechosos",sus,`${(sus/total*100).toFixed(1)}%`],["Limpios",clean,`${(clean/total*100).toFixed(1)}%`],["Sin resultado",nf,`${(nf/total*100).toFixed(1)}%`]]);
+    const mal=iocs.filter(i=>i.malicious>10).length;
+    const sus=iocs.filter(i=>i.malicious>0&&i.malicious<=10).length;
+    const clean=iocs.filter(i=>i.status==="scanned"&&i.malicious===0).length;
+    const nf=iocs.filter(i=>i.status==="not_found").length;
+    const total=iocs.length;
+    const sha256c=iocs.filter(i=>i.ioc_type==="sha256").length;
+    const md5c=iocs.filter(i=>i.ioc_type==="md5").length;
+    const sha1c=iocs.filter(i=>i.ioc_type==="sha1").length;
+    const ipc=iocs.filter(i=>i.ioc_type==="ip").length;
+    const domc=iocs.filter(i=>i.ioc_type==="domain").length;
+    const scanned=iocs.filter(i=>i.status==="scanned");
+    const sc0=scanned.filter(i=>i.malicious===0).length;
+    const sc1=scanned.filter(i=>i.malicious>0&&i.malicious<=10).length;
+    const sc2=scanned.filter(i=>i.malicious>10&&i.malicious<=30).length;
+    const sc3=scanned.filter(i=>i.malicious>30).length;
+    const pc={};iocs.filter(i=>i.country).forEach(i=>{pc[i.country]=(pc[i.country]||0)+1;});
+    const ps=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+    const ws1=XLSX.utils.aoa_to_sheet([
+        ["REPORTE IOCs - VIRUSTOTAL - CIR Banxico"],
+        [],
+        ["Fecha",new Date().toLocaleString("es-MX")],
+        ["Generado por","VT-Automatizado v2"],
+        [],
+        ["ESTADISTICAS GENERALES","Cantidad","Porcentaje"],
+        ["Total IOCs",total,"100%"],
+        ["Maliciosos (>10)",mal,`${(mal/total*100).toFixed(1)}%`],
+        ["Sospechosos (1-10)",sus,`${(sus/total*100).toFixed(1)}%`],
+        ["Limpios (0)",clean,`${(clean/total*100).toFixed(1)}%`],
+        ["Sin resultado",nf,`${(nf/total*100).toFixed(1)}%`],
+        [],
+        ["POR TIPO DE IOC","Cantidad"],
+        ["SHA256",sha256c],["MD5",md5c],["SHA1",sha1c],["IP",ipc],["Dominio",domc],
+        [],
+        ["DISTRIBUCION DE SCORE","Cantidad"],
+        ["Limpio (0)",sc0],["Bajo (1-10)",sc1],["Medio (11-30)",sc2],["Alto (30+)",sc3],
+        [],
+        ["TOP PAISES (IPs)","Cantidad"],
+        ...ps.map(x=>[x[0],x[1]])
+    ]);
+    ws1["!cols"]=[{wch:25},{wch:12},{wch:12}];
     XLSX.utils.book_append_sheet(wb,ws1,"Resumen");
+
     const ws2=XLSX.utils.aoa_to_sheet([["Score","IOC","Tipo","Threat Label","Archivo","Pais/AS","Link VT"],...iocs.sort((a,b)=>(b.malicious||0)-(a.malicious||0)).map(i=>[i.score||i.status,i.value,i.ioc_type.toUpperCase(),i.threat_label||"",[i.file_name,i.file_type].filter(Boolean).join(" - "),[i.country,i.as_owner].filter(Boolean).join(" "),vtUrl(i)])]);
     ws2["!cols"]=[10,65,10,25,30,25,55].map(w=>({wch:w}));
     XLSX.utils.book_append_sheet(wb,ws2,"IOCs Detallados");
