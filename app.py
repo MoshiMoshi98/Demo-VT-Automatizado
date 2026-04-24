@@ -219,12 +219,52 @@ def export_xlsx():
     ws2.column_dimensions["F"].width=25
     ws2.column_dimensions["G"].width=55
 
+    from openpyxl.chart import BarChart, PieChart, Reference
+    from openpyxl.chart.label import DataLabelList
+
+    # Grafica pie distribucion
+    pie = PieChart()
+    pie_data = Reference(ws, min_col=2, min_row=8, max_row=11)
+    pie_cats = Reference(ws, min_col=1, min_row=8, max_row=11)
+    pie.add_data(pie_data)
+    pie.set_categories(pie_cats)
+    pie.title = "Distribucion de Resultados"
+    pie.dataLabels = DataLabelList()
+    pie.dataLabels.showPercent = True
+    pie.dataLabels.showLegendKey = False
+    pie.width = 15; pie.height = 12
+    ws.add_chart(pie, "E6")
+
+    # Grafica bar por tipo
+    bar1 = BarChart()
+    bar1.type = "col"
+    bar1_data = Reference(ws, min_col=2, min_row=15, max_row=20)
+    bar1_cats = Reference(ws, min_col=1, min_row=16, max_row=20)
+    bar1.add_data(bar1_data, titles_from_data=True)
+    bar1.set_categories(bar1_cats)
+    bar1.title = "Por Tipo de IOC"
+    bar1.legend = None
+    bar1.width = 15; bar1.height = 12
+    ws.add_chart(bar1, "E26")
+
+    # Grafica bar score dist
+    bar2 = BarChart()
+    bar2.type = "col"
+    bar2_data = Reference(ws, min_col=2, min_row=24, max_row=28)
+    bar2_cats = Reference(ws, min_col=1, min_row=25, max_row=28)
+    bar2.add_data(bar2_data, titles_from_data=True)
+    bar2.set_categories(bar2_cats)
+    bar2.title = "Distribucion de Score"
+    bar2.legend = None
+    bar2.width = 15; bar2.height = 12
+    ws.add_chart(bar2, "H26")
+
     output=BytesIO()
     wb.save(output)
     output.seek(0)
     return Response(output.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition":f"attachment; filename=IOCs_VT_{datetime.now().strftime(\'%Y%m%d_%H%M\')}.xlsx"})
+        headers={"Content-Disposition":f"attachment; filename=IOCs_VT_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"})
 
 if __name__ == "__main__":
     app.run(debug=True)
