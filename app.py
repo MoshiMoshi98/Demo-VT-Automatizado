@@ -1,10 +1,9 @@
 from flask import Flask, render_template, request, jsonify
-import vt, os, re
+import requests, os, re
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
 VT_API_KEY = os.environ.get("VT_API_KEY", "f2c83df5f4ce4ee2126f44d0082509efb1ff87aee930dffaf0772f08775d6458")
-
 request_times = []
 
 def detect_ioc_type(value):
@@ -34,53 +33,50 @@ def scan_one():
     wait = check_rate_limit()
     if wait > 0:
         return jsonify({"status": "wait", "seconds": int(wait) + 1})
-
     data = request.get_json()
     value = data.get("ioc", "").strip().lower()
     ioc_type = detect_ioc_type(value)
-
     request_times.append(datetime.now())
 
+    headers = {"x-apikey": VT_API_KEY}
     try:
-        with vt.Client(VT_API_KEY) as client:
-            if ioc_type in ["md5", "sha1", "sha256"]:
-                obj = client.get_object(f"/files/{value}")
-            elif ioc_type == "ip":
-                obj = client.get_object(f"/ip_addresses/{value}")
-            elif ioc_type == "domain":
-                obj = client.get_object(f"/domains/{value}")
-            else:
-                return jsonify({"status": "error", "error": "Tipo no soportado"})
+        if ioc_type in ["md5", "sha1", "sha256"]:
+            url = f"https://www.virustotal.com/api/v3/files/{value}"
+        elif ioc_type == "ip":
+            url = f"https://www.virustotal.com/api/v3/ip_addresses/{value}"
+        elif ioc_type == "domain":
+            url = f"https://www.virustotal.com/api/v3/domains/{value}"
+        else:
+            return jsonify({"status": "error", "error": "Tipo no soportado"})
 
-            stats = obj.last_analysis_stats
-            malicious = stats.get("malicious", 0)
-            suspicious = stats.get("suspicious", 0)
-            total = sum(stats.values())
+        resp = requests.get(url, headers=headers, timeout=30)
 
-            threat_label = ""
-            threat_info = getattr(obj, "popular_threat_classification", {})
-            if threat_info:
-                threat_label = threat_info.get("suggested_threat_label", "")
-
-            return jsonify({
-                "status": "scanned",
-                "ioc": value,
-                "ioc_type": ioc_type,
-                "malicious": malicious,
-                "suspicious": suspicious,
-                "total": total,
-                "score": f"{malicious}/{total}",
-                "threat_label": threat_label,
-                "file_name": getattr(obj, "meaningful_name", ""),
-                "file_type": getattr(obj, "type_description", ""),
-                "country": getattr(obj, "country", ""),
-                "as_owner": getattr(obj, "as_owner", ""),
-            })
-
-    except vt.error.APIError as e:
-        if "NotFoundError" in str(e):
+        if resp.status_code == 404:
             return jsonify({"status": "not_found", "ioc": value, "ioc_type": ioc_type})
-        return jsonify({"status": "error", "error": str(e)})
+        if resp.status_code != 200:
+            return jsonify({"status": "error", "error": f"VT error {resp.status_code}"})
+
+        attr = resp.json().get("data", {}).get("attributes", {})
+        stats = attr.get("last_analysis_stats", {})
+        malicious = stats.get("malicious", 0)
+        suspicious = stats.get("suspicious", 0)
+        total = sum(stats.values())
+
+        threat_label = ""
+        tc = attr.get("popular_threat_classification", {})
+        if tc:
+            threat_label = tc.get("suggested_threat_label", "")
+
+        return jsonify({
+            "status": "scanned", "ioc": value, "ioc_type": ioc_type,
+            "malicious": malicious, "suspicious": suspicious, "total": total,
+            "score": f"{malicious}/{total}", "threat_label": threat_label,
+            "file_name": attr.get("meaningful_name", ""),
+            "file_type": attr.get("type_description", ""),
+            "country": attr.get("country", ""),
+            "as_owner": attr.get("as_owner", ""),
+        })
+
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)})
 
