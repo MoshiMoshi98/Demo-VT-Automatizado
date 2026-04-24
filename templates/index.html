@@ -185,7 +185,7 @@ async function scanLoop(){
 }
 function clearAll(){if(!confirm("Borrar todos los IOCs?"))return;iocs=[];nextId=1;render();document.getElementById("scan-status").textContent="";}
 
-function exportExcel(){
+function exportExcel(){fetch("/export/xlsx",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({iocs})}).then(r=>r.blob()).then(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=`IOCs_VT_${new Date().toISOString().slice(0,10)}.xlsx`;a.click()});} function exportExcel_old(){
     if(iocs.length===0){alert("No hay IOCs para exportar");return;}
     const wb=XLSX.utils.book_new();
     const mal=iocs.filter(i=>i.malicious>10).length;
