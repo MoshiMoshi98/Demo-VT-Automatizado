@@ -4,8 +4,27 @@ from datetime import datetime, timedelta
 from io import BytesIO
 
 app = Flask(__name__)
-VT_API_KEY = os.environ.get("VT_API_KEY", "f2c83df5f4ce4ee2126f44d0082509efb1ff87aee930dffaf0772f08775d6458")
+# Pool de API keys con rotacion automatica
+API_KEYS = [
+    {"key": "f2c83df5f4ce4ee2126f44d0082509efb1ff87aee930dffaf0772f08775d6458", "used": 0, "reset": 0},
+    {"key": "4ece254fb20782174737580b6719b28149907472cede75421ee313413b38d2f0", "used": 0, "reset": 0},
+    {"key": "f7a7dcb989420f1e9046c47581b0a18f715ead354382b2275fb31474c02a4fcb", "used": 0, "reset": 0},
+]
+DAILY_LIMIT = 500
 request_times = []
+
+def get_api_key():
+    import time
+    now = time.time()
+    for k in API_KEYS:
+        # Reset contador si paso el dia
+        if now > k["reset"]:
+            k["used"] = 0
+            k["reset"] = now + 86400
+        if k["used"] < DAILY_LIMIT:
+            k["used"] += 1
+            return k["key"]
+    return None
 
 def detect_ioc_type(value):
     value = value.strip().lower()
@@ -38,7 +57,10 @@ def scan_one():
     value = data.get("ioc", "").strip().lower()
     ioc_type = detect_ioc_type(value)
     request_times.append(datetime.now())
-    headers = {"x-apikey": VT_API_KEY}
+    api_key = get_api_key()
+    if not api_key:
+        return jsonify({"status": "error", "error": "Todas las API keys alcanzaron el limite diario (1500/dia)"})
+    headers = {"x-apikey": api_key}
     try:
         if ioc_type in ["md5", "sha1", "sha256"]:
             url = f"https://www.virustotal.com/api/v3/files/{value}"
