@@ -6,9 +6,9 @@ from io import BytesIO
 app = Flask(__name__)
 # Pool de API keys con rotacion automatica
 API_KEYS = [
-    {"key": "f2c83df5f4ce4ee2126f44d0082509efb1ff87aee930dffaf0772f08775d6458", "used": 0, "reset": 0},
-    {"key": "4ece254fb20782174737580b6719b28149907472cede75421ee313413b38d2f0", "used": 0, "reset": 0},
-    {"key": "f7a7dcb989420f1e9046c47581b0a18f715ead354382b2275fb31474c02a4fcb", "used": 0, "reset": 0},
+    {"key": os.environ.get("VT_API_KEY_1", ""), "used": 0, "reset": 0},
+    {"key": os.environ.get("VT_API_KEY_2", ""), "used": 0, "reset": 0},
+    {"key": os.environ.get("VT_API_KEY_3", ""), "used": 0, "reset": 0},
 ]
 DAILY_LIMIT = 500
 request_times = []
