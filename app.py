@@ -54,7 +54,7 @@ def scan_one():
     if wait > 0:
         return jsonify({"status": "wait", "seconds": int(wait) + 1})
     data = request.get_json()
-    value = data.get("ioc", "").strip().lower()
+    value = data.get("ioc", "").strip().lower().replace("[.]", ".").replace("hxxp", "http").replace("[:]", ":").replace("hxxps", "https")
     ioc_type = detect_ioc_type(value)
     request_times.append(datetime.now())
     api_key = get_api_key()
