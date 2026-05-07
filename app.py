@@ -40,7 +40,7 @@ def check_rate_limit():
     now = datetime.now()
     cutoff = now - timedelta(minutes=1)
     request_times = [t for t in request_times if t > cutoff]
-    if len(request_times) >= 4:
+    if len(request_times) >= 12:
         return (min(request_times) + timedelta(minutes=1) - now).total_seconds()
     return 0
 
@@ -287,6 +287,29 @@ def export_xlsx():
     return Response(output.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition":f"attachment; filename=IOCs_VT_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"})
+
+@app.route("/api_status")
+def api_status():
+    import time
+    now = time.time()
+    status = []
+    for i, k in enumerate(API_KEYS):
+        if now > k["reset"]:
+            k["used"] = 0
+            k["reset"] = now + 86400
+        status.append({
+            "key": i + 1,
+            "used": k["used"],
+            "remaining": DAILY_LIMIT - k["used"],
+            "limit": DAILY_LIMIT,
+            "pct": round(k["used"] / DAILY_LIMIT * 100, 1)
+        })
+    return jsonify({
+        "keys": status,
+        "total_used": sum(k["used"] for k in API_KEYS),
+        "total_remaining": sum(DAILY_LIMIT - k["used"] for k in API_KEYS),
+        "total_limit": DAILY_LIMIT * len(API_KEYS)
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
