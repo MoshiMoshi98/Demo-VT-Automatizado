@@ -177,7 +177,7 @@ async function scanLoop(){
         const resp=await fetch("/scan_one",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ioc:ioc.value})});
         const data=await resp.json();
         if(data.status==="wait"){ioc.status="pending";document.getElementById("scan-status").textContent=`Rate limit, esperando ${data.seconds}s...`;render();setTimeout(scanLoop,data.seconds*1000);return;}
-        if(data.status==="scanned"){Object.assign(ioc,{status:"scanned",malicious:data.malicious,suspicious:data.suspicious,total:data.total,score:data.score,threat_label:data.threat_label,file_name:data.file_name,file_type:data.file_type,country:data.country,as_owner:data.as_owner});}
+        if(data.status==="scanned"){Object.assign(ioc,{status:"scanned",malicious:data.malicious,suspicious:data.suspicious,total:data.total,score:data.score,threat_label:data.threat_label,file_name:data.file_name,file_type:data.file_type,country:data.country,as_owner:data.as_owner,vt_id:data.vt_id||""});}
         else if(data.status==="not_found"){ioc.status="not_found";}
         else{ioc.status="error";ioc.error=data.error||"Error";}
     }catch(e){ioc.status="error";ioc.error=e.message;}

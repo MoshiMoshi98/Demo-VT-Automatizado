@@ -32,6 +32,7 @@ def detect_ioc_type(value):
     elif re.match(r"^[a-f0-9]{32}$", value): return "md5"
     elif re.match(r"^[a-f0-9]{40}$", value): return "sha1"
     elif re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", value): return "ip"
+    elif value.startswith("http") and "/" in value.split("://",1)[-1]: return "url"
     elif "." in value: return "domain"
     return "unknown"
 
@@ -68,6 +69,10 @@ def scan_one():
             url = f"https://www.virustotal.com/api/v3/ip_addresses/{value}"
         elif ioc_type == "domain":
             url = f"https://www.virustotal.com/api/v3/domains/{value}"
+        elif ioc_type == "url":
+            import base64
+            url_id = base64.urlsafe_b64encode(value.encode()).decode().strip("=")
+            url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
         else:
             return jsonify({"status": "error", "error": "Tipo no soportado"})
         resp = requests.get(url, headers=headers, timeout=30)
