@@ -80,7 +80,9 @@ def scan_one():
             return jsonify({"status": "not_found", "ioc": value, "ioc_type": ioc_type})
         if resp.status_code != 200:
             return jsonify({"status": "error", "error": f"VT error {resp.status_code}"})
-        attr = resp.json().get("data", {}).get("attributes", {})
+        resp_json = resp.json()
+        attr = resp_json.get("data", {}).get("attributes", {})
+        vt_data_id = resp_json.get("data", {}).get("id", "")
         stats = attr.get("last_analysis_stats", {})
         malicious = stats.get("malicious", 0)
         suspicious = stats.get("suspicious", 0)
