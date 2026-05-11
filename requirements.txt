@@ -1,3 +1,6 @@
+# VT-Automatizado v1.0.0 - Dependencias de producción
+# CIR Banxico - Dirección de Ciberseguridad
+
 Flask==3.0.3
 requests==2.31.0
 openpyxl==3.1.2
