@@ -1,42 +1,42 @@
-# Demo VT-Automatizado
+# VT-Automatizado v1.0.0
+## Verificador Automatizado de IOCs con VirusTotal | CIR Banxico
 
-Verificador automatizado de IOCs (Indicators of Compromise) usando la API de VirusTotal.
+Herramienta web para verificacion masiva de Indicadores de Compromiso (IOCs) contra VirusTotal API v3.
 
-## Características
-
--  Verificación de hashes (MD5, SHA1, SHA256), IPs y dominios
--  Rate limiting automático (4 consultas/min - plan gratuito VT)
--  Cache de resultados en SQLite
--  Dashboard con gráficas interactivas
--  Exportación a Excel con estadísticas y links
-
-## Instalación Local
+## Instalacion
 
 ```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-export VT_API_KEY="tu-api-key-de-virustotal"
-python app.py
 ```
 
-## Despliegue en PythonAnywhere
+## Configuracion
 
-1. Crear cuenta en pythonanywhere.com
-2. Ir a "Web" > "Add a new web app" > Flask
-3. Subir archivos o clonar desde GitHub
-4. En "WSGI configuration file" agregar:
-```python
-   import sys
-   path = '/home/TU_USUARIO/Demo-VT-Automatizado'
-   if path not in sys.path:
-       sys.path.append(path)
-   from app import app as application
+Configurar variables de entorno:
+```bash
+export VT_API_KEY_1='tu_api_key_aqui'
+export VT_API_KEY_2='tu_api_key_2_aqui'
+export VT_API_KEY_3='tu_api_key_3_aqui'
 ```
-5. En "Virtualenv" instalar dependencias
-6. En "Environment variables" agregar `VT_API_KEY`
 
-## Obtener API Key de VirusTotal
+## Uso
 
-1. Crear cuenta en virustotal.com
-2. Ir a tu perfil > API Key
-3. Copiar la key (plan gratuito: 4 consultas/minuto)
+```bash
+# Desarrollo
+python3 app.py
 
+# Produccion
+gunicorn -w 2 -b 0.0.0.0:8000 app:app
+```
+
+## Capacidad
+- 3 API keys x 500/dia = 1,500 consultas/dia
+- 12 consultas/minuto
+- 46,500 consultas/mes estimadas
+
+## Stack
+- Backend: Python 3 + Flask
+- API: VirusTotal API v3
+- Frontend: Bootstrap 5 + Chart.js
+- Export: openpyxl
