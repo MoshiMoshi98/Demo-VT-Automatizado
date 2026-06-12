@@ -1,5 +1,5 @@
 # VT-Automatizado v1.0.0
-## Verificador Automatizado de IOCs con VirusTotal | CIR Banxico
+## Verificador Automatizado de IOCs con VirusTotal 
 
 Herramienta web para verificacion masiva de Indicadores de Compromiso (IOCs) contra VirusTotal API v3.
 
